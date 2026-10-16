@@ -1,0 +1,17 @@
+PCB bare-board defects (before assembly)
+========================================
+classes: ['missing_hole', 'mouse_bite', 'open_circuit', 'short', 'spur', 'spurious_copper', 'pin_hole']
+
+source              images  groups  train/val/test images
+pku_tedpublic          693      10  540/61/92
+deeppcb               1500      11  1128/177/195
+aaa_hr                5135      57  3820/664/651
+
+split   files  empty   missing_hole     mouse_bite   open_circuit          short           spur spurious_coppe       pin_hole
+train   18276   3044           2520           7570           7670           6966           7284           6994           2264
+val      1090    183            143            426            485            418            398            384            172
+test     1017    170            139            441            439            371            397            420            197
+
+excluded (excluded.csv has every file and its reason):
+   4295  identical pixels
+    617  mirrored/rotated duplicate
