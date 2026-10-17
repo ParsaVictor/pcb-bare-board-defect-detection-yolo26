@@ -1,0 +1,13 @@
+{
+ "global": 0.465,
+ "per_class": {
+  "missing_hole": 0.745,
+  "mouse_bite": 0.484,
+  "open_circuit": 0.77,
+  "short": 0.406,
+  "spur": 0.382,
+  "spurious_copper": 0.33,
+  "pin_hole": 0.571
+ },
+ "how": "confidence at the F1 maximum on val (classes with < 15 val boxes use the global one)"
+}

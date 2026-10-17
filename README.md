@@ -1,106 +1,108 @@
 <h1 align="center">Bare PCB Defect Detection — YOLO26</h1>
 
 <p align="center">
-  <strong>Inspection of bare (unassembled) printed circuit boards: a YOLO26 detector for the 7 classic copper and drilling defects — missing hole, mouse bite, open circuit, short, spur, spurious copper and pin hole — trained on a cleaned merge of PKU-Market-PCB, DeepPCB and web photos.</strong>
+  <strong>Inspection of bare (unassembled) printed circuit boards. A YOLO26 detector for the 7 classic copper and drilling defects: missing hole, mouse bite, open circuit, short, spur, spurious copper and pin hole. It is trained on a cleaned merge of PKU-Market-PCB, DeepPCB and web photos.</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/model-YOLO26s-7c3aed.svg" alt="YOLO26s">
-  <img src="https://img.shields.io/badge/mAP@50-0.895-16a34a.svg" alt="mAP@50 0.895">
-  <img src="https://img.shields.io/badge/mAP@50--95-0.601-16a34a.svg" alt="mAP@50-95 0.601">
-  <img src="https://img.shields.io/badge/classes-7-2563eb.svg" alt="7 classes">
+  <img src="https://img.shields.io/badge/test%20mAP@50-0.928-16a34a.svg" alt="test mAP@50 0.928">
+  <img src="https://img.shields.io/badge/test%20mAP@50--95-0.617-16a34a.svg" alt="test mAP@50-95 0.617">
   <img src="https://img.shields.io/badge/weights-included-f59e0b.svg" alt="Weights included">
   <img src="https://img.shields.io/badge/Colab-T4%20ready-f9ab00.svg?logo=googlecolab&logoColor=white" alt="Colab ready">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT">
 </p>
 
-<!--PRED
 <p align="center">
-  <img src="assets/predictions.jpg" alt="YOLO26 bare PCB defect detection on held-out boards: open circuit, short, mouse bite, spur, spurious copper and missing hole detected" width="100%">
-  <br><em>Detections of the trained model on held-out test boards (board designs never seen in training).</em>
+  <img src="assets/predictions.jpg" alt="YOLO26 bare PCB defect detection on held-out boards: missing holes, mouse bites, spurs, spurious copper, opens, shorts and pin holes detected" width="100%">
+  <br><em>Predictions on <b>test</b> boards never used in training or model selection. Top row: PKU-Market-PCB photos. Bottom row: DeepPCB scans. Thin green boxes = ground truth.</em>
 </p>
-PRED-->
-
----
 
 ## At a glance
 
 | | |
 |---|---|
-| **Task** | Object detection of fabrication defects on bare PCBs (pre-assembly AOI) |
-| **Model** | Ultralytics **YOLO26s**, 1024 px input, tiled inference for full-resolution scans |
-| **Accuracy (validation)** | **mAP@50 = 0.895 · mAP@50-95 = 0.601 · Precision 0.867 · Recall 0.871** |
-| **Data** | 5,488 unique images from 3 sources (PKU-Market-PCB full-resolution, DeepPCB, web photos), 46,098 boxes |
-| **Cleaning** | 4,295 pixel-identical and 617 mirrored/rotated copies removed; split by physical board |
-| **Weights** | [`weights/best.pt`](weights/) — 20 MB, plus per-class confidence thresholds |
-| **Hardware** | Free Google Colab **Tesla T4**; inference on CPU or GPU |
+| **Task** | Detect fabrication defects on bare PCBs (pre-assembly AOI) |
+| **Model** | Ultralytics YOLO26s · 9.95 M parameters · 1024 px input · tiled inference for full-resolution scans |
+| **Test accuracy** | **mAP@50 0.928 · mAP@50-95 0.617 · Precision 0.902 · Recall 0.883** |
+| **Validation accuracy** | mAP@50 0.895 · mAP@50-95 0.601 (best of 50 epochs, epoch 17) |
+| **Speed** | ~50 ms per image on a Tesla T4 |
+| **Data** | 5,488 unique images, 46,098 boxes, 3 sources, split by board design |
+| **Weights** | [`weights/best.pt`](weights/) (20 MB) + per-class thresholds |
+
+## Results on the test set
+
+Each class has its own confidence threshold, tuned for the best F1 score on validation. Recall and precision below are measured with those thresholds on the test set.
+
+| Defect | Test boxes | mAP@50 | mAP@50-95 | Recall | Precision |
+|---|---|---|---|---|---|
+| `pin_hole` | 197 | **0.985** | 0.874 | 93 % | 96 % |
+| `missing_hole` | 139 | **0.976** | 0.581 | 97 % | 94 % |
+| `open_circuit` | 439 | 0.921 | 0.569 | 70 % | 98 % |
+| `spur` | 397 | 0.918 | 0.557 | 88 % | 89 % |
+| `mouse_bite` | 441 | 0.916 | 0.564 | 80 % | 95 % |
+| `spurious_copper` | 420 | 0.916 | 0.675 | 90 % | 85 % |
+| `short` | 371 | 0.861 | 0.501 | 76 % | 88 % |
+| **All classes** | **2,404** | **0.928** | **0.617** | | |
+
+<p align="center">
+  <img src="results/training_curves.png" alt="Training curves of the YOLO26s bare PCB defect model over 50 epochs" width="100%">
+</p>
+
+<p align="center">
+  <img src="results/confusion_matrix.png" alt="Normalised confusion matrix of the bare PCB defect detector on the test set" width="49%">
+  <img src="results/pr_curve.png" alt="Precision-recall curves per bare PCB defect class on the test set" width="49%">
+</p>
+
+### What the numbers say
+
+- **Classes are almost never confused with each other.** The confusion matrix is clean: every off-diagonal value between two defect classes is ≤ 2 %. Remaining errors are defects missed entirely (background row) or false alarms on clean copper (background column).
+- **`short` is the hardest class** (mAP@50 0.861): 18 % of shorts are missed.
+- **`open_circuit` trades recall for precision.** Its validation-tuned threshold (0.77) gives 98 % precision but only 70 % recall. Lower it in `weights/thresholds.json` if a missed open costs more than a false alarm.
+- **The model peaked early (epoch 17).** With 18k training files, every class is learned quickly. Later epochs kept validation flat (mAP@50 about 0.87). The limit is the number of distinct board designs, not the number of epochs.
+- **Web photos** (the `aaa_hr` source, many different boards at varying quality) are the hardest images: a few of them get no detection at the default thresholds.
 
 ## Defect classes
 
 <p align="center">
-  <img src="assets/defect_gallery.jpg" alt="Gallery of bare PCB defect classes: missing hole, mouse bite, open circuit, short, spur, spurious copper, pin hole" width="100%">
-  <br><em>Two real annotated examples per class from the validation/test splits (colour photos: PKU-Market-PCB and web; black-and-white: DeepPCB binarised scans).</em>
+  <img src="assets/defect_gallery.jpg" alt="Gallery of bare PCB defect classes with real annotated examples" width="100%">
 </p>
 
-| # | Class | Description |
-|---|---|---|
-| 0 | `missing_hole` | A drill hole that was never drilled |
-| 1 | `mouse_bite` | Bite-shaped notch eaten into the edge of a trace |
-| 2 | `open_circuit` | A trace broken through — no electrical connection |
-| 3 | `short` | Copper joining two conductors that must be isolated |
-| 4 | `spur` | Thin copper protrusion sticking out of a trace |
-| 5 | `spurious_copper` | Leftover copper island where there should be none |
-| 6 | `pin_hole` | Small hole inside a copper area |
+| Class | Meaning |
+|---|---|
+| `missing_hole` | a drill hole that was never drilled |
+| `mouse_bite` | bite-shaped notch in the edge of a trace |
+| `open_circuit` | trace broken through |
+| `short` | copper joining two conductors that must stay isolated |
+| `spur` | thin copper protrusion from a trace |
+| `spurious_copper` | leftover copper island |
+| `pin_hole` | small hole inside a copper area |
 
 <p align="center">
-  <img src="assets/zoom_examples.jpg" alt="Zoomed example of a missing hole and a mouse bite on a bare PCB" width="80%">
+  <img src="assets/zoom_examples.jpg" alt="Zoomed example of a missing hole and a mouse bite on a bare PCB" width="70%">
   <br><em>How small these defects are: the whole board, and the zoomed defect.</em>
 </p>
 
-## Results
+## How it was built
 
-<!--CURVES
-<p align="center">
-  <img src="results/training_curves.png" alt="Training curves of the YOLO26s bare PCB defect model" width="100%">
-</p>
-CURVES-->
+Public PCB-defect datasets are heavily duplicated. An audit of 52 Roboflow datasets found that about 20 of the large ones are resized, cropped or augmented copies of the same **693 PKU-Market-PCB photos**. This dataset is built from originals only:
 
-| Metric (validation, best checkpoint) | Value |
-|---|---|
-| Precision | 0.867 |
-| Recall | 0.871 |
-| mAP@50 | **0.895** |
-| mAP@50-95 | **0.601** |
-
-The model already reaches mAP@50 0.82 after one epoch — the merged dataset gives every class at least 1,100 training boxes. The validation and test splits contain **different board designs** from training, so the numbers measure generalisation to new layouts, not memorisation of the 10 PKU boards.
-
-## Dataset
-
-<p align="center">
-  <img src="assets/data_sources.png" alt="Sources of the bare PCB defect dataset and their train/val/test split" width="100%">
-  <img src="assets/class_distribution.png" alt="Annotated bare PCB defects per class and split" width="100%">
-</p>
-
-Public PCB-defect datasets are heavily duplicated: an audit of 52 Roboflow datasets found that ~20 of the large ones are resized, cropped or augmented copies of the same **693 PKU-Market-PCB photos**. This repository builds the dataset from originals only:
-
-| Source | Images | Physical boards / groups | Notes |
+| Source | Images | Board designs | Notes |
 |---|---|---|---|
-| PKU-Market-PCB (official, full-resolution) | 693 | 10 boards | official labels |
-| DeepPCB | 1,500 | 11 scans | binarised 640 px template/test pairs |
-| Web photo collection (`aaa_hr`) | 5,135 | 57 groups | 2048 px originals re-cropped to the real photo, padding removed |
+| PKU-Market-PCB (official, full resolution) | 693 | 10 | official labels |
+| DeepPCB | 1,500 | 11 scans | binarised 640 px images |
+| Web photos (`aaa_hr`) | 5,135 | 57 groups | 2048 px originals re-cropped, padding removed |
 
-- **Group-aware split** by board / scan / group — a board design never appears in two splits.
-- **De-duplication** — 4,295 pixel-identical files and 617 mirrored/rotated copies excluded (every exclusion and reason recorded).
-- **Exact 90° training copies** → 18,276 training files.
-- Every class has ≥ 1,132 training boxes and 139–485 boxes in each of val and test.
+- **Split by board design.** No design appears in two splits, so the test score measures new layouts.
+- **De-duplication.** 4,295 pixel-identical files and 617 mirrored or rotated copies were excluded, with every exclusion recorded.
+- **Exact 90° copies** of every training image, giving 18,276 training files.
 
-| Split | Files | Boxes |
-|---|---|---|
-| train | 18,276 | 41,268 |
-| val | 1,090 | 2,426 |
-| test | 1,017 | 2,404 |
+<p align="center">
+  <img src="assets/data_sources.png" alt="Sources of the bare PCB defect dataset and their split" width="49%">
+  <img src="assets/class_distribution.png" alt="Annotated bare PCB defects per class and split" width="49%">
+</p>
 
-Details: [`docs/dataset_report.txt`](docs/dataset_report.txt).
+Training used the same stable recipe as the solder model: AdamW with `lr0=5e-4`, `warmup_bias_lr=0`, and a divergence guard. Batch size was 9 on a free Colab T4, at about 17 minutes per epoch. The final model is selected on validation only.
 
 ## Quick start
 
@@ -109,50 +111,40 @@ git clone https://github.com/ParsaVictor/pcb-bare-board-defect-detection-yolo26.
 cd pcb-bare-board-defect-detection-yolo26
 pip install -r requirements.txt
 
-python infer/predict.py --weights weights/best.pt --source path/to/board.jpg --imgsz 1024 --out results/my_run
+python infer/predict.py --weights weights/best.pt --source path/to/boards --out results/run1
 ```
 
-Outputs per image: `<name>_annotated.jpg`, `<name>.json` (class, confidence, box) and a run-level `summary.csv`. Full-resolution scans (e.g. PKU 3000 × 2000 px) are tiled and merged with class-aware NMS so pin holes a few pixels wide are not lost to down-scaling.
+For each image this writes `<name>_annotated.jpg`, `<name>.json` (class, confidence, box) and a `summary.csv`. Full-resolution scans (for example 3000 × 2000 px PKU photos) are tiled and merged with NMS, so pin holes a few pixels wide are not lost to down-scaling. Per-class thresholds come from `weights/thresholds.json`; `--conf 0.3` overrides them.
 
 ```python
 from ultralytics import YOLO
+
 model = YOLO("weights/best.pt")
-results = model.predict("board.jpg", imgsz=1024, conf=0.25)
-results[0].save("board_pred.jpg")
+model.predict("board.jpg", imgsz=1024, conf=0.3)[0].save("board_pred.jpg")
 ```
 
-## Train it yourself (Google Colab)
+## Train on Google Colab
 
-[`notebooks/Bare_Model_Colab.ipynb`](notebooks/Bare_Model_Colab.ipynb) — *Run all* on a free T4: live training panel, checkpoints to Google Drive every 2 epochs, automatic resume after a disconnect (from any account), divergence guard (rollback + LR halving), per-class thresholds and a test report at the end.
+Open [`notebooks/Bare_Model_Colab.ipynb`](notebooks/Bare_Model_Colab.ipynb), put `bare_data.zip` (3.9 GB) in Google Drive and choose *Run all*. The notebook shows a live training panel and saves checkpoints to Drive every 2 epochs. It resumes automatically after a disconnect, from any account. At the end it writes the per-class thresholds and a test report.
 
 ```bash
 python train/train_solder.py --data final_bare --work runs --drive /content/drive/MyDrive/runs/bare \
        --model yolo26s.pt --imgsz 1024 --epochs 50 --patience 20
 ```
 
-(`train_solder.py` is the shared training script of both defect models.)
-
-## Rebuild the dataset
-
-```bash
-export ROBOFLOW_API_KEY=...
-python tools/download_versions.py      # sources in configs/downloads.csv
-python tools/aaa_hr.py                 # re-crop the web photos from their 2048 px originals
-python run_pipeline.py                 # extract → map classes → de-duplicate → group split → verify
-```
+`train_solder.py` is the shared training script of both defect models. To rebuild the dataset: `ROBOFLOW_API_KEY=... python tools/download_versions.py && python tools/aaa_hr.py && python run_pipeline.py`.
 
 ## Repository layout
 
 ```
-├── weights/            best.pt (YOLO26s, 20 MB) + thresholds.json
-├── infer/predict.py    tiled inference with per-class thresholds
-├── train/              training script with Drive sync, resume and divergence guard
-├── notebooks/          one-click Colab notebook
-├── tools/              audit of 52 public datasets, de-duplication, group-aware split, verification
-├── configs/            class taxonomy and source → class mapping
-├── results/            results.csv, training curves
-├── docs/               dataset report
-└── assets/             README figures
+weights/     best.pt · thresholds.json · summary.json
+infer/       predict.py — tiled inference with per-class thresholds
+train/       training script (Drive sync, resume, divergence guard) · live panel
+notebooks/   one-click Colab notebook
+tools/       audit of 52 public datasets, de-duplication, board-level split, verification
+configs/     class taxonomy and source-to-class mapping
+results/     results.csv · training curves · confusion matrix · PR curve
+docs/        dataset report
 ```
 
 ## FAQ
@@ -160,23 +152,22 @@ python run_pipeline.py                 # extract → map classes → de-duplicat
 **Which defects does it find?**
 The seven standard bare-board defects: missing hole, mouse bite, open circuit, short, spur, spurious copper and pin hole.
 
-**Is it trained on PKU-Market-PCB or DeepPCB?**
-Both, plus 5,000 web photos of other boards — merged into one taxonomy, de-duplicated, and split by board so the score reflects unseen designs.
-
 **How accurate is it?**
-mAP@50 = 0.895 and mAP@50-95 = 0.601 on the validation boards with YOLO26s at 1024 px.
+On test boards with layouts never seen in training: mAP@50 = 0.928 and mAP@50-95 = 0.617. Pin holes and missing holes score highest, at 0.98.
+
+**Is it trained on PKU-Market-PCB or DeepPCB?**
+Both, plus about 5,000 web photos of other boards. They are merged into one taxonomy, de-duplicated, and split by board design.
 
 **What about soldering defects on assembled boards?**
 Use the companion model [**pcb-solder-defect-detection-yolo26**](https://github.com/ParsaVictor/pcb-solder-defect-detection-yolo26).
 
-## Part of a PCB inspection suite
+## Related repositories
 
-| Repository | Stage | What it does |
-|---|---|---|
-| **pcb-bare-board-defect-detection-yolo26** | before assembly | copper / etching defects on bare boards |
-| [pcb-solder-defect-detection-yolo26](https://github.com/ParsaVictor/pcb-solder-defect-detection-yolo26) | after assembly | soldering and placement defects |
-| [pcb-component-detection-yolo26](https://github.com/ParsaVictor/pcb-component-detection-yolo26) | after assembly | locates and identifies every component |
-| [pcb-component-classifier](https://github.com/ParsaVictor/pcb-component-classifier) | per part | explainable Random-Forest component classifier |
+| Repository | What it does |
+|---|---|
+| [pcb-solder-defect-detection-yolo26](https://github.com/ParsaVictor/pcb-solder-defect-detection-yolo26) | soldering and placement defects after assembly |
+| [pcb-component-detection-yolo26](https://github.com/ParsaVictor/pcb-component-detection-yolo26) | locates and identifies every component on a board |
+| [pcb-component-classifier](https://github.com/ParsaVictor/pcb-component-classifier) | explainable Random-Forest classifier for component crops |
 
 ## Citation
 
@@ -193,11 +184,8 @@ Please also cite the source datasets: PKU-Market-PCB (Huang & Wei, 2019) and Dee
 
 ## License
 
-Code and weights: MIT — see [LICENSE](LICENSE). Source images keep their original licences (see [`configs/downloads.csv`](configs/downloads.csv)).
+Code and weights are MIT-licensed ([LICENSE](LICENSE)). Source images keep their original licences, listed in [`configs/downloads.csv`](configs/downloads.csv).
 
-## Author
-
-**Mohammad Parsa Karkooti** — AI Engineer (Computer Vision, Deep Learning)
-[GitHub](https://github.com/ParsaVictor) · [LinkedIn](https://www.linkedin.com/in/parsa-karkooti) · [Email](mailto:1.parsa.karkooti@gmail.com)
+**Author:** Mohammad Parsa Karkooti, AI Engineer (Computer Vision) · [GitHub](https://github.com/ParsaVictor) · [LinkedIn](https://www.linkedin.com/in/parsa-karkooti) · [Email](mailto:1.parsa.karkooti@gmail.com)
 
 <sub>Keywords: PCB defect detection, bare board inspection, PKU-Market-PCB, DeepPCB, mouse bite, open circuit, short circuit, spur, spurious copper, missing hole, pin hole, YOLO26, automated optical inspection, AOI, printed circuit board quality control.</sub>
